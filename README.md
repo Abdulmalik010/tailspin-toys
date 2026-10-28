@@ -42,6 +42,12 @@ npm run build      # prebuild migrates + seeds, then builds the static site
 npm run preview
 ```
 
+## Backer Concierge
+
+The Backer Concierge at `/concierge` answers free-text questions using the generated Tailspin catalog. It recommends games by matching the catalog's titles, descriptions, categories, publishers, and star ratings. It does not use a remote AI service or web search, and it will not guess campaign totals, backer or player counts, pledge tiers, prices, or release dates. For general board-game background, use an external reference; it is not presented as a Tailspin catalog fact.
+
+The catalog grounding file is generated from the seeded database by `npm run db:export`. The `predev` and `prebuild` hooks run that script automatically; it writes `db/catalog.json` for local grounding and `public/concierge-catalog.json` for the static site's browser-side assistant.
+
 ## Database
 
 The SQLite database is built from `db/games.csv` — there is no live data to migrate.
@@ -51,7 +57,7 @@ npm run db:generate   # generate a migration after editing db/schema.ts
 npm run db:migrate    # apply migrations
 npm run db:seed       # seed from games.csv (idempotent)
 npm run db:setup      # migrate + seed (run automatically by predev/prebuild)
-npm run db:export     # write the seeded catalog to db/catalog.json
+npm run db:export     # write catalog grounding files for the Backer Concierge
 ```
 
 > [!NOTE]

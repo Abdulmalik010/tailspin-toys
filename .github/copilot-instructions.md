@@ -48,6 +48,7 @@ This is a crowdfunding platform for games with a developer theme. The applicatio
 
 - **Astro Pages/Components**: routing, layouts, content, and components are all `.astro` - see `astro.instructions.md`
 - Query data directly in page frontmatter via the `src/lib/` helpers (build-time, static output)
+- Keep the Backer Concierge catalog-only and deterministic; its generated public catalog is `public/concierge-catalog.json`, and unsupported campaign details must be refused rather than guessed
 - Dynamic routes use `getStaticPaths()` + `export const prerender = true`
 - Provide a branded `404.astro` (unknown routes are real 404s under static output)
 - Only add a scoped Astro `<script>` when genuine client interactivity is required
@@ -71,8 +72,8 @@ This is a crowdfunding platform for games with a developer theme. The applicatio
 - Development commands are defined in `package.json`. They run Astro for the site and TypeScript tasks in `db/` for database setup.
 - **Skills take precedence.** Before running a command directly, check whether a skill covers the task (e.g. the `quality-checks` skill wraps unit tests, lint, and type checks). If one applies, follow it.
 - Key npm scripts:
-  - `npm run dev` — start the Astro dev server (`predev` migrates + seeds the local SQLite database)
-  - `npm run build` — build the static site (`prebuild` migrates + seeds the local SQLite database)
+  - `npm run dev` — start the Astro dev server (`predev` migrates + seeds the local SQLite database, then exports the concierge catalog)
+  - `npm run build` — build the static site (`prebuild` migrates + seeds the local SQLite database, then exports the concierge catalog)
   - `npm run preview` — serve the built `dist/` output
   - `npm run lint` — ESLint
   - `npm run test:unit` — Vitest unit tests
@@ -91,10 +92,10 @@ This is a crowdfunding platform for games with a developer theme. The applicatio
 The application lives at the repository root:
 
 - `db/`: Drizzle schema, migrations, transforms, seed, and `games.csv`
-- `src/lib/`: Node SQLite client (`db.ts`) and data-access helpers (`games.ts`)
+- `src/lib/`: Node SQLite client (`db.ts`), data-access helpers (`games.ts`), and catalog-only concierge matching (`concierge.ts`)
 - `src/components/`: reusable `.astro` components
 - `src/layouts/`: Astro layout templates
-- `src/pages/`: Astro page routes (`index.astro` listing, `game/[id].astro`, `404.astro`, `about.astro`)
+- `src/pages/`: Astro page routes (`index.astro` listing, `game/[id].astro`, `404.astro`, `about.astro`, `concierge.astro`)
 - `src/styles/`: CSS and Tailwind configuration
 - `src/types/`: TypeScript interfaces (Game, Publisher, Category)
 - `e2e-tests/`: Playwright E2E tests (home, games, accessibility)
