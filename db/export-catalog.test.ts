@@ -8,6 +8,7 @@ import {
     toCatalogExport,
     serializeCatalogExport,
     writeCatalogExport,
+    writeCatalogExports,
     type CatalogExport,
 } from './export-catalog';
 import type { Game } from '../src/types/game';
@@ -199,5 +200,17 @@ describe('writeCatalogExport', () => {
         expect(returned.games[0].title).toBe('Merge Conflict');
         expect(written).toEqual(returned);
         expect(output.endsWith('}\n')).toBe(true);
+    });
+
+    it('writes identical catalog grounding to the database and public-site targets', async () => {
+        const db: Database = await createTestDatabase();
+        tempDir = mkdtempSync(join(tmpdir(), 'catalog-export-targets-'));
+        const databasePath = join(tempDir, 'db', 'catalog.json');
+        const publicPath = join(tempDir, 'public', 'concierge-catalog.json');
+
+        const exported = await writeCatalogExports(db, [databasePath, publicPath]);
+
+        expect(readFileSync(databasePath, 'utf-8')).toBe(readFileSync(publicPath, 'utf-8'));
+        expect(JSON.parse(readFileSync(publicPath, 'utf-8'))).toEqual(exported);
     });
 });

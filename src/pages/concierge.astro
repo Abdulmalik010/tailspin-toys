@@ -1,0 +1,158 @@
+---
+import Layout from '../layouts/Layout.astro';
+import PageHero from '../components/PageHero.astro';
+---
+
+<Layout title="Backer Concierge - Tailspin Toys">
+  <div class="py-8">
+    <PageHero
+      title="Backer Concierge"
+      subtitle="Tell me what you enjoy and I’ll find the closest matches in our game catalog."
+    />
+
+    <section
+      id="concierge"
+      data-catalog-url="/concierge-catalog.json"
+      class="mx-auto max-w-3xl rounded-xl border border-slate-700 bg-slate-800 p-6 shadow-lg sm:p-8"
+      aria-labelledby="concierge-heading"
+    >
+      <h2 id="concierge-heading" class="mb-3 text-xl font-semibold text-slate-100">Ask about our games</h2>
+      <p class="mb-6 text-slate-300">
+        I use only the Tailspin catalog, which includes game descriptions, categories, publishers, and star ratings.
+        It does not include campaign totals, backer or player counts, pledge tiers, prices, or release dates.
+        General board-game background is not included.
+      </p>
+
+      <form data-testid="concierge-form" class="space-y-4">
+        <label for="concierge-question" class="block font-medium text-slate-100">What kind of game are you looking for?</label>
+        <textarea
+          id="concierge-question"
+          name="question"
+          rows="4"
+          minlength="2"
+          maxlength="500"
+          required
+          class="w-full rounded-lg border border-slate-600 bg-slate-900 p-3 text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="For example: What's the highest-rated strategy game?"
+          data-testid="concierge-question"
+        ></textarea>
+        <button
+          type="submit"
+          class="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white transition-colors hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 focus:ring-offset-slate-800 disabled:cursor-wait disabled:opacity-60"
+          data-testid="concierge-submit"
+        >
+          Ask the concierge
+        </button>
+      </form>
+
+      <p class="mt-4 min-h-6 text-slate-300" role="status" aria-live="polite" data-testid="concierge-status"></p>
+      <p class="mt-4 rounded-lg border border-red-800 bg-red-950 p-4 text-red-100" role="alert" hidden data-testid="concierge-error">
+        The catalog could not be read, so I can’t answer that question. Please try again later.
+      </p>
+
+      <section class="mt-6" aria-labelledby="concierge-response-heading" hidden data-testid="concierge-results">
+        <h3 id="concierge-response-heading" class="mb-3 text-lg font-semibold text-slate-100">Concierge response</h3>
+        <p class="mb-4 text-slate-200" data-testid="concierge-answer-message"></p>
+        <ul class="space-y-3" data-testid="concierge-recommendations"></ul>
+      </section>
+    </section>
+  </div>
+</Layout>
+
+<script>
+  import { answerCatalogQuestion, isCatalogExport } from '../lib/concierge';
+  import type { CatalogExport, CatalogGame } from '../../db/export-catalog';
+
+  const root = document.getElementById('concierge');
+  const form = document.querySelector<HTMLFormElement>('[data-testid="concierge-form"]');
+  const questionInput = document.querySelector<HTMLTextAreaElement>('[data-testid="concierge-question"]');
+  const submitButton = document.querySelector<HTMLButtonElement>('[data-testid="concierge-submit"]');
+  const status = document.querySelector<HTMLElement>('[data-testid="concierge-status"]');
+  const error = document.querySelector<HTMLElement>('[data-testid="concierge-error"]');
+  const results = document.querySelector<HTMLElement>('[data-testid="concierge-results"]');
+  const answerMessage = document.querySelector<HTMLElement>('[data-testid="concierge-answer-message"]');
+  const recommendations = document.querySelector<HTMLUListElement>('[data-testid="concierge-recommendations"]');
+  let catalogRequest: Promise<CatalogExport> | null = null;
+
+  function loadCatalog(url: string): Promise<CatalogExport> {
+    if (!catalogRequest) {
+      catalogRequest = fetch(url)
+        .then((response) => {
+          if (!response.ok) throw new Error(`Catalog request failed with status ${response.status}.`);
+          return response.json() as Promise<unknown>;
+        })
+        .then((catalog: unknown) => {
+          if (!isCatalogExport(catalog)) throw new Error('The generated catalog is invalid.');
+          return catalog;
+        })
+        .catch((caughtError: unknown) => {
+          catalogRequest = null;
+          throw caughtError;
+        });
+    }
+
+    return catalogRequest;
+  }
+
+  function renderRecommendations(games: CatalogGame[]): void {
+    if (!recommendations) return;
+
+    const items = games.map((game) => {
+      const item = document.createElement('li');
+      item.className = 'rounded-lg border border-slate-700 bg-slate-900 p-4';
+
+      const title = document.createElement('h4');
+      title.className = 'mb-2 font-semibold';
+      const link = document.createElement('a');
+      link.href = `/game/${game.id}`;
+      link.className = 'text-blue-300 underline decoration-transparent underline-offset-4 transition hover:text-blue-200 hover:decoration-current focus:outline-none focus:ring-2 focus:ring-blue-500';
+      link.dataset.testid = 'concierge-game-link';
+      link.textContent = game.title;
+      title.append(link);
+
+      const description = document.createElement('p');
+      description.className = 'mb-3 text-slate-300';
+      description.textContent = game.description;
+
+      const details = document.createElement('p');
+      details.className = 'text-sm text-slate-400';
+      details.textContent = `${game.category} | ${game.publisher} | ${game.ratingLabel}`;
+
+      item.append(title, description, details);
+      return item;
+    });
+
+    recommendations.replaceChildren(...items);
+  }
+
+  if (root && form && questionInput && submitButton && status && error && results && answerMessage) {
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      status.textContent = 'Checking the Tailspin catalog…';
+      error.hidden = true;
+      results.hidden = true;
+      submitButton.disabled = true;
+      form.setAttribute('aria-busy', 'true');
+
+      try {
+        await new Promise<void>((resolve) => window.requestAnimationFrame(() => resolve()));
+        const catalogUrl = root.dataset.catalogUrl;
+        if (!catalogUrl) throw new Error('The generated catalog URL is missing.');
+
+        const catalog = await loadCatalog(catalogUrl);
+        const answer = answerCatalogQuestion(questionInput.value, catalog);
+        answerMessage.textContent = answer.message;
+        renderRecommendations(answer.recommendations);
+        results.hidden = false;
+        status.textContent = 'Answer ready.';
+      } catch (caughtError) {
+        console.error('Backer Concierge could not read its catalog:', caughtError);
+        status.textContent = '';
+        error.hidden = false;
+      } finally {
+        submitButton.disabled = false;
+        form.removeAttribute('aria-busy');
+      }
+    });
+  }
+</script>

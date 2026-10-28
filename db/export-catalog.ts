@@ -21,11 +21,12 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 /** Default location of the generated grounding file. */
 export const CATALOG_EXPORT_PATH = join(here, 'catalog.json');
+export const PUBLIC_CATALOG_EXPORT_PATH = join(here, '..', 'public', 'concierge-catalog.json');
 
 const UNKNOWN_CATEGORY = 'Uncategorized';
 const UNKNOWN_PUBLISHER = 'Unknown publisher';
 
-/** A single catalog entry as the agent sees it. */
+/** A single catalog entry as the Backer Concierge sees it. */
 export interface CatalogGame {
     id: number;
     title: string;
@@ -37,7 +38,7 @@ export interface CatalogGame {
     ratingLabel: string;
 }
 
-/** The full grounding document uploaded to the agent. */
+/** The full catalog grounding document consumed by the Backer Concierge. */
 export interface CatalogExport {
     source: string;
     note: string;
@@ -102,20 +103,31 @@ export function serializeCatalogExport(exported: CatalogExport): string {
     return `${JSON.stringify(exported, null, 2)}\n`;
 }
 
-/** Read the seeded database and write the grounding file to disk. */
-export async function writeCatalogExport(db: Database, outputPath: string = CATALOG_EXPORT_PATH): Promise<CatalogExport> {
+/** Read the seeded database and write the grounding file(s) to disk. */
+export async function writeCatalogExports(
+    db: Database,
+    outputPaths: string[] = [CATALOG_EXPORT_PATH, PUBLIC_CATALOG_EXPORT_PATH],
+): Promise<CatalogExport> {
     const exported = toCatalogExport(await getAllGames(db));
-    mkdirSync(dirname(outputPath), { recursive: true });
-    writeFileSync(outputPath, serializeCatalogExport(exported), 'utf-8');
+    const serialized = serializeCatalogExport(exported);
+    for (const outputPath of outputPaths) {
+        mkdirSync(dirname(outputPath), { recursive: true });
+        writeFileSync(outputPath, serialized, 'utf-8');
+    }
     return exported;
+}
+
+/** Read the seeded database and write a single grounding file to disk. */
+export async function writeCatalogExport(db: Database, outputPath: string = CATALOG_EXPORT_PATH): Promise<CatalogExport> {
+    return writeCatalogExports(db, [outputPath]);
 }
 
 // Allow running directly: `tsx db/export-catalog.ts`
 if (import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
     const db = createDatabase();
-    writeCatalogExport(db)
+    writeCatalogExports(db)
         .then((exported) => {
-            console.log(`Exported ${exported.gameCount} games to ${CATALOG_EXPORT_PATH}`);
+            console.log(`Exported ${exported.gameCount} games to ${CATALOG_EXPORT_PATH} and ${PUBLIC_CATALOG_EXPORT_PATH}`);
             process.exit(0);
         })
         .catch((error) => {

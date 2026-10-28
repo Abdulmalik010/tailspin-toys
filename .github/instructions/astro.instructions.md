@@ -100,11 +100,11 @@ const game = await getGameById(getDatabase(), Number(id));
 
 - Build-time data comes from a local SQLite database via **Drizzle ORM + Node SQLite** (see [`drizzle.instructions.md`](drizzle.instructions.md)).
 - Import `getDatabase()` from `src/lib/db.ts` and the typed helpers from `src/lib/games.ts`.
-- The database must be migrated and seeded before `astro build`; the `prebuild` npm script (`db:setup`) handles this.
+- The database must be migrated and seeded before `astro build`; the `prebuild` npm script exports the Backer Concierge catalog, which runs the migration and seed step first.
 
 ## Client Interactivity (rare)
 
-There is no Svelte/React layer. When a page genuinely needs client behaviour, add a scoped Astro `<script>` using standard DOM APIs. Prefer native interactive elements (`<button>`, `<a href>`) so keyboard and focus behaviour come for free.
+There is no Svelte/React layer. When a page genuinely needs client behaviour, add a scoped Astro `<script>` using standard DOM APIs. Prefer native interactive elements (`<button>`, `<a href>`) so keyboard and focus behaviour come for free. The Backer Concierge is a special case: it fetches the generated static catalog asset in the browser, then performs deterministic, local-only matching; it does not call a remote AI service.
 
 ## TypeScript
 
@@ -116,7 +116,7 @@ There is no Svelte/React layer. When a page genuinely needs client behaviour, ad
 
 ## Best Practices
 
-- Keep data fetching in frontmatter (build time); avoid client-side fetching
+- Keep data fetching in frontmatter (build time); avoid client-side fetching except when required for genuine interaction, such as loading the generated concierge catalog
 - Minimize client-side JavaScript — the default is zero JS shipped
 - Import and use global CSS styles from layouts
 - Always include a `data-testid` on interactive elements (see `ui.instructions.md`)
